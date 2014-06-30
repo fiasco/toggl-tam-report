@@ -1,0 +1,4 @@
+token: <toggl api token>
+workspace_id: <toggl workspace id>
+user_agent: <arbitrary string>
+timezone: "UTC"

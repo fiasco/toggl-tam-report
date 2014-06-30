@@ -1,0 +1,8 @@
+clientname:
+  client_id: <toggl client id>
+  monthly_hours: <(int) hours per month>
+  name: "Client name in Toggl (not project name)"
+clientname:
+  client_id: <toggl client id>
+  monthly_hours: <(int) hours per month>
+  name: "Client name in Toggl (not project name)"
