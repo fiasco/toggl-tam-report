@@ -77,13 +77,17 @@ class TAMReport {
     }
     $accounts = $this->getAccounts();
     $rows = array();
+    $latest_day = new \DateTime();
+    if ($latest_day->getTimestamp() > $this->dateRangeFinish->getTimestamp()) {
+      $latest_day = clone $this->dateRangeFinish;
+    }
     foreach ($accounts as $name => $account) {
       $rows[$name] = array(
         'name' => $name,
         'allocated' => $account['monthly_hours'],
         'project' => '',
         'used' => 0,
-        'provisioned' => ($this->workingDays(new \DateTime()) / $this->workingDays($this->dateRangeFinish)) * $account['monthly_hours'],
+        'provisioned' => ($this->workingDays($latest_day) / $this->workingDays($this->dateRangeFinish)) * $account['monthly_hours'],
         'completed' => 0,
       );
     }
