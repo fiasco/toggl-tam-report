@@ -77,18 +77,22 @@ class TAMReport {
     }
     $accounts = $this->getAccounts();
     $rows = array();
+    foreach ($accounts as $name => $account) {
+      $rows[$name] = array(
+        'name' => $name,
+        'allocated' => $account['monthly_hours'],
+        'project' => '',
+        'used' => 0,
+        'provisioned' => ($this->workingDays(new \DateTime()) / $this->workingDays($this->dateRangeFinish)) * $account['monthly_hours'],
+        'completed' => 0,
+      );
+    }
     foreach ($this->reportData['data'] as $data_row) {
       $account = $accounts[$data_row['title']['client']];
-      $row = array(
-        'name' => $account['name'],
-        'project' => $data_row['title']['project'],
-        'allocated' => $account['monthly_hours'],
-        'used' => $data_row['time'] / 1000 / 60 / 60,
-      );
-      $row['provisioned'] = ($this->workingDays(new \DateTime()) / $this->workingDays($this->dateRangeFinish)) * $row['allocated'];
+      $row = &$rows[$account['name']];
+      $row['project'] = $data_row['title']['project'];
+      $row['used'] = $data_row['time'] / 1000 / 60 / 60;
       $row['completed'] = $row['used'] / $row['allocated'];
-
-      $rows[] = $row;
     }
     return $rows;
   }
