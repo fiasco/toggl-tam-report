@@ -13,9 +13,14 @@ $api = $yaml->parse(file_get_contents('api.yml'));
 
 $report = new TAMReport($api, $accounts);
 
+$current_month = time();
+if (!empty($_GET['month']) && is_numeric($_GET['month'])) {
+  $current_month = strtotime($_GET['month'] . ' months'); 
+}
+
 // Set date time range.
-$start = new DateTime('01-' . date('m-Y'));
-$finish = new DateTime('01-' . date('m-Y', strtotime('next month')));
+$start = new DateTime('01-' . date('m-Y', $current_month));
+$finish = new DateTime('01-' . date('m-Y', strtotime('next month', $current_month)));
 
 $report->setDateRange($start, $finish)
        ->queryData();
@@ -112,16 +117,28 @@ function html_row_attribute($value, $compare) {
       <div class="row">
         <div class="col-md-10 col-md-offset-1 main">
           <h1 class="page-header">Dashboard</h1>
-
+          <div class="dropdown">
+            <button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown">
+              Select reporting month
+              <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
+              <?php for ($i=0; $i > -12; $i--): ?>
+              <li role="presentation" <?php if (date('m-Y', strtotime($i . ' months')) == date('m-Y', $current_month)) { echo 'class="active"'; } ?>>
+                <a role="menuitem" tabindex="-1" href="?month=<?php print $i; ?>"><?php print date('F Y', strtotime($i . ' months')); ?></a>
+              </li>
+              <?php endfor; ?>
+            </ul>
+          </div>
           <div class="row">
             <div class="col-sm-12">
-              <h4>TAM hours for <?php print date('F, Y'); ?></h4>
+              <h4>TAM hours for <?php print $start->format('F, Y'); ?></h4>
               <div id="chart_div" style="width: 100%; height: 350px;"></div>
               <p>Report generated at <?php print date('H:i:s \o\n F dS'); ?></p>
             </div>
           </div>
 
-          <h2 class="sub-header"><?php print date('F'); ?> breakdown</h2>
+          <h2 class="sub-header"><?php print $start->format('F'); ?> breakdown</h2>
           <div class="table-responsive">
             <table class="table table-striped">
               <thead>
