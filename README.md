@@ -7,7 +7,7 @@ Installation
 To install you'll need a LAMP install, composer and PHP 5.4 or greater.
 First install composer dependancies
     
-    cd toggle-tam-report
+    cd toggl-tam-report
     composer install
 
 Copy the *.yml.example files to actual YAML files and fill out accordingly.
