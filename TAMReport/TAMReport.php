@@ -60,6 +60,10 @@ class TAMReport {
         return $account['client_id'];
       }, $this->accounts)),
     );
+
+    if (isset($this->api['user_ids'])) {
+      $parameters['user_ids'] = $this->api['user_ids'];
+    }
     return $parameters;
   }
 
