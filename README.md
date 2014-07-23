@@ -27,4 +27,5 @@ be found by using the toggl reports UI to build a report filtered on your accoun
 in the URL for that report.
 
 In the api.yml file add the following equivalent line:
+
     user_ids: <insert user id here>
