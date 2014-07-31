@@ -56,10 +56,10 @@ class TAMReport {
 
   protected function cacheFilename() {
     $cid = serialize(array($this->getAccounts(), $this->getAPI()));
-    $cid = substr(md5($cid), 8);
+    $cid = substr(md5($cid) . date('-YMDHi'), 8);
     $name = strtr('TAMReport-@start-@finish-@cid', array(
-      '@start' => $this->dateRangeStart->format('YmdH'),
-      '@finish' => $this->dateRangeFinish->format('YmdH'),
+      '@start' => $this->dateRangeStart->format('Ymd'),
+      '@finish' => $this->dateRangeFinish->format('Ymd'),
       '@cid' => $cid,
     ));
     return $this->cacheFileStore . '/' . $name . '.data';
