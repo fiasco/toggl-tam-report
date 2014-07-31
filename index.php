@@ -1,9 +1,10 @@
 <?php
 $loader = require_once 'vendor/autoload.php';
-$loader->add('TAMReport\TAMReport', __DIR__);
+$loader->add('TAMReport', __DIR__);
 
 use Symfony\Component\Yaml\Parser;
 use TAMReport\TAMReport;
+use TAMReport\TAMQuarterlyReport;
 
 // This should be instansiated as their own objects.
 // But meh.
@@ -11,7 +12,8 @@ $yaml = new Parser();
 $accounts = $yaml->parse(file_get_contents('accounts.yml'));
 $api = $yaml->parse(file_get_contents('api.yml'));
 
-$report = new TAMReport($api, $accounts);
+$monthly_report = new TAMReport($api, $accounts);
+$quarterly_report = new TAMReport($api, $accounts);
 
 $current_month = time();
 if (!empty($_GET['month']) && is_numeric($_GET['month'])) {
@@ -22,21 +24,21 @@ if (!empty($_GET['month']) && is_numeric($_GET['month'])) {
 $start = new DateTime('01-' . date('m-Y', $current_month));
 $finish = new DateTime('01-' . date('m-Y', strtotime('next month', $current_month)));
 
-$report->setDateRange($start, $finish)
-       ->queryData();
-$rows = $report->getTableRows();
+$monthly_report->setDateRange($start, $finish);
+
+$quarterly_data = new TAMQuarterlyReport($monthly_report);
+$report = $quarterly_data->queryData();
+$rows = $quarterly_data->getTableRows();
 
 function html_row_attribute($value, $compare) {
-  if ($value > $compare) {
-    return ' class="danger"';
-  }
-  if ($value == $compare) {
+  $target = ($value / $compare);
+  if (($target > 0.8) && ($target < 1.2)) {
     return ' class="success"';
   }
-  if (($value / $compare) > 0.75) {
+  if (($target > 0.5) && ($target < 1.5)) {
     return ' class="warning"';
   }
-  return '';
+  return ' class="danger"';
 }
 
 ?>
@@ -67,9 +69,9 @@ function html_row_attribute($value, $compare) {
       google.setOnLoadCallback(drawChart);
       function drawChart() {
         var data = [
-          ['Name', 'Used', 'Provisioned'],
+          ['Name', 'Used', 'Provisioned', 'Allocated'],
           <?php foreach ($rows as $row): ?>
-          ['<?php print $row['name'];?>', <?php print round($row['used'], 2); ?>, <?php print round($row['provisioned'], 2); ?>],
+          ['<?php print $row['name'];?>', <?php print round($row['used'], 2); ?>, <?php print round($row['provisioned'], 2); ?>, <?php print round($row['allocated'], 2); ?>],
           <?php endforeach; ?>
           []
         ];
@@ -80,7 +82,7 @@ function html_row_attribute($value, $compare) {
         var options = {
           // title: 'Company Performance',
           // vAxis: {title: 'Year',  titleTextStyle: {color: 'red'}}
-          colors: ['#48BBCC', '#5B5C60']
+          colors: ['#6DC39A', '#005C74', '#102C47']
         };
 
         var chart = new google.visualization.BarChart(document.getElementById('chart_div'));
@@ -90,29 +92,6 @@ function html_row_attribute($value, $compare) {
   </head>
 
   <body>
-    <!--
-    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
-      <div class="container-fluid">
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-brand" href="#">TAM Account Dashboard</a>
-        </div>
-        <div class="navbar-collapse collapse">
-          <ul class="nav navbar-nav navbar-right">
-            <li><a href="#">Dashboard</a></li>
-            <li><a href="#">Settings</a></li>
-            <li><a href="#">Profile</a></li>
-            <li><a href="#">Help</a></li>
-          </ul>
-        </div>
-      </div>
-    </div>
-    -->
     <div class="container-fluid">
       <div class="row">
         <div class="col-md-10 col-md-offset-1 main">
@@ -133,8 +112,8 @@ function html_row_attribute($value, $compare) {
           <div class="row">
             <div class="col-sm-12">
               <h4>TAM hours for <?php print $start->format('F, Y'); ?></h4>
-              <div id="chart_div" style="width: 100%; height: 350px;"></div>
-              <p>Report generated at <?php print date('H:i:s \o\n F dS'); ?></p>
+              <div id="chart_div" style="width: 100%; height: <?php print count($rows) * 70; ?>px;"></div>
+              <p>Report generated at <?php print date('H:i:s \o\n F dS', $report['date_queried']); ?></p>
             </div>
           </div>
 
@@ -146,8 +125,10 @@ function html_row_attribute($value, $compare) {
                   <th>Client</th>
                   <th>Project</th>
                   <th>Hours/month</th>
-                  <th>Burned</th>
-                  <th>Burned %</th>
+                  <th>Burned/month</th>
+                  <th>Burned %/month</th>
+                  <th>Burned/quarter</th>
+                  <th>Burned %/quarter</th>
                 </tr>
               </thead>
               <tbody>
@@ -158,8 +139,19 @@ function html_row_attribute($value, $compare) {
                   <td><?php print $row['allocated']; ?></td>
                   <td><?php print round($row['used'], 2); ?></td>
                   <td><?php print round(($row['completed'] * 100), 2); ?>%</td>
+                  <td<?php print html_row_attribute($row['quarter_used'], $row['quarter_provisioned']); ?>><?php print round($row['quarter_used'], 2); ?></td>
+                  <td<?php print html_row_attribute($row['quarter_used'], $row['quarter_provisioned']); ?>><?php print round(($row['quarter_completed'] * 100), 2); ?>%</td>
                 </tr>
                 <?php endforeach; ?>
+                <tr>
+                  <th>Total</th>
+                  <th></th>
+                  <th><?php print $allocated = round(array_sum(array_column($rows, 'allocated')), 2); ?></th>
+                  <th><?php print $used      = round(array_sum(array_column($rows, 'used')), 2); ?></th>
+                  <th><?php print round(($used/$allocated) * 100, 2); ?>%</th>
+                  <th><?php print $qused = round(array_sum(array_column($rows, 'quarter_used')), 2); ?></th>
+                  <th><?php print round(($qused / array_sum(array_column($rows, 'quarter_provisioned'))) * 100, 2); ?>%</th>
+                </tr>
               </tbody>
             </table>
           </div>

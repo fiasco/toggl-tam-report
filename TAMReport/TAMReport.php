@@ -18,6 +18,8 @@ class TAMReport {
 
   protected $reportData = NULL;
 
+  protected $cacheFileStore = '/tmp';
+
   public function __construct(Array $api, Array $accounts) {
     $this->api = $api;
     $this->accounts = $accounts;
@@ -29,23 +31,72 @@ class TAMReport {
     date_default_timezone_set($this->api['timezone']);
   }
 
+  public function getAPI() {
+    return $this->api;
+  }
+
   public function setDateRange(\DateTime $start, \DateTime $finish) {
     $this->dateRangeStart = $start;
     $this->dateRangeFinish = $finish;
+
+    $multiplier = $finish->format('n') - $start->format('n');
+
+    foreach ($this->accounts as &$account) {
+      $account['timeframe_hours'] = $account['monthly_hours'] * $multiplier;
+    }
     return $this;
   }
 
+  public function getDateRange() {
+    return (object) array(
+      'start' => $this->dateRangeStart,
+      'finish' => $this->dateRangeFinish,
+    );
+  }
+
+  protected function cacheFilename() {
+    $cid = serialize(array($this->getAccounts(), $this->getAPI()));
+    $cid = substr(md5($cid), 8);
+    $name = strtr('TAMReport-@start-@finish-@cid', array(
+      '@start' => $this->dateRangeStart->format('YmdH'),
+      '@finish' => $this->dateRangeFinish->format('YmdH'),
+      '@cid' => $cid,
+    ));
+    return $this->cacheFileStore . '/' . $name . '.data';
+  }
+
+  protected function cacheSet($data) {
+    return file_put_contents($this->cacheFilename(), serialize($data));
+  }
+
+  protected function cacheGet() {
+    if (!file_exists($this->cacheFilename())) {
+      return FALSE;
+    }
+    if ($data = file_get_contents($this->cacheFilename())) {
+      return unserialize($data);
+    } 
+    return FALSE;
+  }
+
   public function queryData() {
+    if (!empty($this->reportData)) {
+      return $this->reportData;
+    }
+    if (!$this->reportData = $this->cacheGet()) {
+      $query_parameters = $this->buildQuery();
 
-    $query_parameters = $this->buildQuery();
+      $token = base64_encode($this->api['token'] . ':api_token');
 
-    $token = base64_encode($this->api['token'] . ':api_token');
-
-    $client = new Client();
-    $response = $client->get($this->apiUrl . '?' . http_build_query($query_parameters), [
-        'headers' =>  ['Authorization' => 'Basic ' . $token],
-    ]);
-    return $this->reportData = $response->json();
+      $client = new Client();
+      $response = $client->get($this->apiUrl . '?' . http_build_query($query_parameters), [
+          'headers' =>  ['Authorization' => 'Basic ' . $token],
+      ]);
+      $this->reportData = $response->json();
+      $this->reportData['date_queried'] = time();
+      $this->cacheSet($this->reportData);
+    }
+    return $this->reportData;
   }
 
   protected function buildQuery() {
@@ -88,10 +139,10 @@ class TAMReport {
     foreach ($accounts as $name => $account) {
       $rows[$name] = array(
         'name' => $name,
-        'allocated' => $account['monthly_hours'],
+        'allocated' => $account['timeframe_hours'],
         'project' => array(),
         'used' => 0,
-        'provisioned' => ($this->workingDays($latest_day) / $this->workingDays($this->dateRangeFinish)) * $account['monthly_hours'],
+        'provisioned' => ($this->workingDays($latest_day) / $this->workingDays($this->dateRangeFinish)) * $account['timeframe_hours'],
         'completed' => 0,
       );
     }
