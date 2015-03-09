@@ -13,7 +13,12 @@ class TAMQuarterlyReport extends TAMReport {
 
     $range = $monthly->getDateRange();
     $start = clone $range->start;
-    $start->modify('-' . (($start->format('n') % 3) - 1) . ' months');
+    if (($start->format('n') % 3) == 2) {
+      $start->modify('-1 month');
+    }
+    elseif (($start->format('n') % 3) == 0) {
+      $start->modify('-2 months');
+    }
     $finish = clone $start;
     $finish->modify('+3 months');
     $this->setDateRange($start, $finish);

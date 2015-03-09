@@ -137,13 +137,14 @@ class TAMReport {
       $latest_day = clone $this->dateRangeFinish;
     }
     foreach ($accounts as $name => $account) {
-      $rows[$name] = array(
+      $rows[$name] = $account + array(
         'name' => $name,
         'allocated' => $account['timeframe_hours'],
         'project' => array(),
         'used' => 0,
         'provisioned' => ($this->workingDays($latest_day) / $this->workingDays($this->dateRangeFinish)) * $account['timeframe_hours'],
         'completed' => 0,
+        'client_id' => $account['client_id'],
       );
     }
     foreach ($this->reportData['data'] as $data_row) {
